@@ -1,8 +1,12 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { useAuthModal } from "@account-kit/react";
 import Avatar from "boring-avatars";
 
 export function Hero() {
+  const { openAuthModal } = useAuthModal();
+
   return (
     <div className="flex flex-col gap-16 items-center text-center">
       {/* Main Hero Section */}
@@ -15,13 +19,13 @@ export function Hero() {
             Pay and receive payments easier than ever, any time, anywhere
           </p>
         </div>
-        
+
         <div className="flex gap-4">
-          <Button asChild size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
-            <Link href="/auth/sign-up">Sign Up</Link>
+          <Button onClick={openAuthModal} size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
+            Sign Up
           </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link href="/auth/login">Sign In</Link>
+          <Button onClick={openAuthModal} variant="outline" size="lg">
+            Sign In
           </Button>
         </div>
       </div>
