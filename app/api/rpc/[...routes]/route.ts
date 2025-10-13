@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   req: Request,
-  { params }: { params: { routes: string[] } }
+  { params }: { params: Promise<{ routes: string[] }> }
 ) {
   const apiKey = process.env.ALCHEMY_API_KEY;
   if (!apiKey) {
