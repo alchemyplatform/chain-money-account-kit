@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useUser as useAccountKitUser } from "@account-kit/react";
+import { useSmartAccount } from "./smart-account-context";
 
 interface UserProfile {
   id: number;
@@ -23,6 +24,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const accountKitUser = useAccountKitUser();
+  const { address: smartAccountAddress } = useSmartAccount();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +52,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const refetchProfile = async () => {
     if (user?.email) {
-      await fetchProfile(user.email);
+      await fetchProfile(user.email, smartAccountAddress);
     }
   };
 
@@ -58,7 +60,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const loadProfile = async () => {
       setLoading(true);
       if (user?.email) {
-        await fetchProfile(user.email);
+        await fetchProfile(user.email, smartAccountAddress);
       } else {
         setProfile(null);
       }
@@ -66,7 +68,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadProfile();
-  }, [user?.email]);
+  }, [user?.email, smartAccountAddress]);
 
   return (
     <UserContext.Provider value={{ user, profile, loading, refetchProfile }}>

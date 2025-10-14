@@ -45,6 +45,17 @@ export async function GET(
       return NextResponse.json({ profile: newProfile }, { status: 200 });
     }
 
+    // If profile exists and smartAccountAddress is provided, update the paymentAddress if it's changed
+    if (smartAccountAddress && profile[0].paymentAddress !== smartAccountAddress) {
+      const [updatedProfile] = await db
+        .update(profilesTable)
+        .set({ paymentAddress: smartAccountAddress })
+        .where(eq(profilesTable.userId, userId))
+        .returning();
+
+      return NextResponse.json({ profile: updatedProfile }, { status: 200 });
+    }
+
     return NextResponse.json({ profile: profile[0] }, { status: 200 });
   } catch (error) {
     console.error("Error fetching profile:", error);
