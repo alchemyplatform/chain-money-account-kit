@@ -26,9 +26,9 @@ export async function GET(
       .where(eq(profilesTable.userId, userId))
       .limit(1);
 
-    // If profile doesn't exist, create it
+    // If profile doesn't exist, create it with the smart account address
     if (profile.length === 0) {
-      // Generate username from email (dannolan99@gmail.com -> dannolan99)
+      // Generate username from email (x@gmail.com -> x)
       const username = userId.split("@")[0];
       const displayName = username;
 
@@ -45,8 +45,12 @@ export async function GET(
       return NextResponse.json({ profile: newProfile }, { status: 200 });
     }
 
-    // If profile exists and smartAccountAddress is provided, update the paymentAddress if it's changed
-    if (smartAccountAddress && profile[0].paymentAddress !== smartAccountAddress) {
+    // If profile exists, check if paymentAddress needs to be updated
+    const existingProfile = profile[0];
+    const needsAddressUpdate = smartAccountAddress &&
+      (!existingProfile.paymentAddress || existingProfile.paymentAddress !== smartAccountAddress);
+
+    if (needsAddressUpdate) {
       const [updatedProfile] = await db
         .update(profilesTable)
         .set({ paymentAddress: smartAccountAddress })
@@ -56,7 +60,7 @@ export async function GET(
       return NextResponse.json({ profile: updatedProfile }, { status: 200 });
     }
 
-    return NextResponse.json({ profile: profile[0] }, { status: 200 });
+    return NextResponse.json({ profile: existingProfile }, { status: 200 });
   } catch (error) {
     console.error("Error fetching profile:", error);
     return NextResponse.json(
@@ -90,10 +94,7 @@ export async function PATCH(
       .returning();
 
     if (!updatedProfile) {
-      return NextResponse.json(
-        { error: "Profile not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
     return NextResponse.json({ profile: updatedProfile }, { status: 200 });
