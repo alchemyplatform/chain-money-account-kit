@@ -26,7 +26,9 @@ export async function GET(
       .where(eq(profilesTable.userId, userId))
       .limit(1);
 
-    // If profile doesn't exist, create it with the smart account address
+    let currentProfile;
+
+    // If profile doesn't exist, create it
     if (profile.length === 0) {
       // Generate username from email (x@gmail.com -> x)
       const username = userId.split("@")[0];
@@ -42,13 +44,14 @@ export async function GET(
         })
         .returning();
 
-      return NextResponse.json({ profile: newProfile }, { status: 200 });
+      currentProfile = newProfile;
+    } else {
+      currentProfile = profile[0];
     }
 
-    // If profile exists, check if paymentAddress needs to be updated
-    const existingProfile = profile[0];
+    // Check if paymentAddress needs to be updated
     const needsAddressUpdate = smartAccountAddress &&
-      (!existingProfile.paymentAddress || existingProfile.paymentAddress !== smartAccountAddress);
+      (!currentProfile.paymentAddress || currentProfile.paymentAddress !== smartAccountAddress);
 
     if (needsAddressUpdate) {
       const [updatedProfile] = await db
@@ -57,10 +60,10 @@ export async function GET(
         .where(eq(profilesTable.userId, userId))
         .returning();
 
-      return NextResponse.json({ profile: updatedProfile }, { status: 200 });
+      currentProfile = updatedProfile;
     }
 
-    return NextResponse.json({ profile: existingProfile }, { status: 200 });
+    return NextResponse.json({ profile: currentProfile }, { status: 200 });
   } catch (error) {
     console.error("Error fetching profile:", error);
     return NextResponse.json(
