@@ -1,54 +1,71 @@
-"use client";
-
-import { Hero } from "@/components/hero";
-import { ActivityFeed } from "@/components/activity-feed";
+import { HomeWrapper } from "@/components/home-wrapper";
 import { AppLayout } from "@/components/app-layout";
-import { useUser } from "@/contexts/user-context";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Send, Sparkles } from "lucide-react";
-import Link from "next/link";
+import { db } from "@/src/db";
+import { transactionsTable, profilesTable } from "@/src/db/schema";
+import { eq, desc } from "drizzle-orm";
 
-export default function Home() {
-  const { user } = useUser();
+async function getLatestTransactions() {
+  try {
+    // Fetch latest 5 transactions
+    const transactions = await db
+      .select({
+        id: transactionsTable.id,
+        transactionHash: transactionsTable.transactionHash,
+        amount: transactionsTable.amount,
+        message: transactionsTable.message,
+        createdAt: transactionsTable.createdAt,
+        fromUserId: transactionsTable.fromUserId,
+        toUserId: transactionsTable.toUserId,
+        senderDisplayName: profilesTable.displayName,
+        senderUsername: profilesTable.username,
+      })
+      .from(transactionsTable)
+      .leftJoin(
+        profilesTable,
+        eq(transactionsTable.fromUserId, profilesTable.userId)
+      )
+      .orderBy(desc(transactionsTable.createdAt))
+      .limit(5);
+
+    // Enrich with recipient info
+    const enrichedTransactions = await Promise.all(
+      transactions.map(async (transaction) => {
+        const recipient = await db
+          .select({
+            displayName: profilesTable.displayName,
+            username: profilesTable.username,
+          })
+          .from(profilesTable)
+          .where(eq(profilesTable.userId, transaction.toUserId))
+          .limit(1);
+
+        return {
+          id: transaction.id,
+          transactionHash: transaction.transactionHash,
+          amount: transaction.amount,
+          message: transaction.message,
+          createdAt: transaction.createdAt.toISOString(),
+          senderDisplayName: transaction.senderDisplayName || "Unknown",
+          senderUsername: transaction.senderUsername || "unknown",
+          recipientDisplayName: recipient.length > 0 ? recipient[0].displayName : "Unknown",
+          recipientUsername: recipient.length > 0 ? recipient[0].username : "unknown",
+        };
+      })
+    );
+
+    return enrichedTransactions;
+  } catch (error) {
+    console.error("Error fetching latest transactions:", error);
+    return [];
+  }
+}
+
+export default async function Home() {
+  const latestTransactions = await getLatestTransactions();
 
   return (
     <AppLayout>
-      {user ? (
-        <div className="flex flex-col gap-8">
-          {/* Payment Prompt Callout */}
-          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/50 dark:via-indigo-950/50 dark:to-purple-950/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                    <Sparkles className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-foreground">Ready to send a payment?</h2>
-                    <p className="text-sm text-muted-foreground">Send money instantly to anyone on the platform</p>
-                  </div>
-                </div>
-                <Button 
-                  asChild 
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 h-11 px-6"
-                >
-                  <Link href="/send-payment" className="flex items-center gap-2">
-                    <Send className="h-4 w-4" />
-                    Pay
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <div className="flex flex-col gap-6">
-            <ActivityFeed />
-          </div>
-        </div>
-      ) : (
-        <Hero />
-      )}
+      <HomeWrapper latestTransactions={latestTransactions} />
     </AppLayout>
   );
 }
